@@ -5,6 +5,8 @@
 # - Fake terminal with scripted responses
 # - Decoy chat window
 # This version does not require real admin privileges or access to real Windows event logs.
+
+
 from pathlib import Path 
 import matplotlib.pyplot as plt
 import matplotlib.animation as animation
