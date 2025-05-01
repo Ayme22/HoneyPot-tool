@@ -1,0 +1,263 @@
+# This is a complete version of the deceptive RDP honeypot tool with:
+# - A fake internal desktop
+# - Fake internal browser with login, dashboard, HR portal
+# - Fake email client
+# - Fake terminal with scripted responses
+# - Decoy chat window
+
+from pathlib import Path 
+import os
+import shutil
+import threading
+import tkinter as tk
+from tkinter import messagebox, filedialog
+import time
+import random
+import logging
+
+# ----------------- Configuration -----------------
+FAKE_STRUCTURE = {
+    "HR": {
+        "employee_data.xlsx": "Name, Position, Salary\nJohn Doe, Engineer, $100000"
+    },
+    "IT": {
+        "credentials": {
+            "admin_creds.txt": "admin:password123!"
+        }
+    }
+}
+LOG_FILE = "rdp_honeypot.log"
+CRED_FILE = os.path.expanduser("~/Documents/Fake_Corp/IT/credentials/admin_creds.txt")
+# --------------------------------------------------
+
+# Setup logging
+logging.basicConfig(filename=LOG_FILE, level=logging.INFO, format='%(asctime)s | %(message)s')
+
+# Setup fake environment
+def create_structure(base_path, structure):
+    for name, content in structure.items():
+        path = os.path.join(base_path, name)
+        if isinstance(content, dict):
+            os.makedirs(path, exist_ok=True)
+            create_structure(path, content)
+        else:
+            with open(path, "w") as f:
+                f.write(content)
+
+def setup_fake_environment():
+    base_dir = os.path.expanduser("~/Documents/Fake_Corp")
+    if os.path.exists(base_dir):
+        shutil.rmtree(base_dir)
+    os.makedirs(base_dir, exist_ok=True)
+    create_structure(base_dir, FAKE_STRUCTURE)
+
+# ----------------- Components -----------------
+
+def open_file_browser():
+    base_dir = os.path.expanduser("~/Documents/Fake_Corp")
+    filedialog.askopenfilename(initialdir=base_dir, title="Browse Files")
+
+def fake_email_client():
+    emails = [
+        ("HR Reminder", "Please submit your timesheet by Friday."),
+        ("Security Alert", "Unusual login detected."),
+        ("Team Lunch", "Join us for lunch at noon!")
+    ]
+    win = tk.Toplevel()
+    win.title("Internal Mail")
+    win.geometry("400x300")
+    listbox = tk.Listbox(win)
+    listbox.pack(fill="both", expand=True)
+
+    def show_message(evt):
+        idx = listbox.curselection()[0]
+        subject, body = emails[idx]
+        messagebox.showinfo(subject, body)
+
+    for subject, _ in emails:
+        listbox.insert("end", subject)
+    listbox.bind("<<ListboxSelect>>", show_message)
+def fake_terminal():
+    shell_win = tk.Toplevel()
+    shell_win.title("Secure Shell")
+    shell_win.geometry("700x400")
+    shell_win.configure(bg="black")
+
+    text_widget = tk.Text(shell_win, bg="black", fg="lime", insertbackground="lime", font=("Courier", 12))
+    text_widget.pack(fill="both", expand=True)
+
+    prompt = "C:\\FakeCorp> "
+
+    responses = {
+        "whoami": "corp\\administrator",
+        "ipconfig": (
+            "Ethernet adapter Ethernet:\n"
+            "   Connection-specific DNS Suffix  . : corp.intranet\n"
+            "   IPv4 Address. . . . . . . . . . . : 10.0.0.8\n"
+            "   Subnet Mask . . . . . . . . . . . : 255.255.255.0\n"
+            "   Default Gateway . . . . . . . . . : 10.0.0.1"
+        ),
+        "netstat": (
+            "Proto  Local Address          Foreign Address        State\n"
+            "TCP    10.0.0.8:443           10.0.0.5:52678          ESTABLISHED\n"
+            "TCP    10.0.0.8:139           0.0.0.0:0               LISTENING"
+        ),
+        "dir": (
+            " Volume in drive C has no label.\n"
+            " Directory of C:\\FakeCorp\n\n"
+            "04/28/2025  10:34 AM    <DIR>          HR\n"
+            "04/28/2025  10:34 AM    <DIR>          Finance\n"
+            "04/28/2025  10:34 AM    <DIR>          IT\n"
+            "               0 File(s)              0 bytes"
+        ),
+        "systeminfo": (
+            "Host Name:                 CORP-SRV01\n"
+            "OS Name:                   Microsoft Windows Server 2019 Standard\n"
+            "OS Version:                10.0.17763 N/A Build 17763\n"
+            "System Manufacturer:       Dell Inc.\n"
+            "System Model:              PowerEdge R740\n"
+            "Processor(s):              2 Processor(s) Installed.\n"
+            "                           [01]: Intel64 Family 6 Model 85 GenuineIntel ~2600 Mhz\n"
+            "BIOS Version:              Dell Inc. 2.4.8, 5/28/2020"
+        ),
+        "tasklist": (
+            "Image Name                     PID Session Name        Mem Usage\n"
+            "========================= ======== ================ ============\n"
+            "svchost.exe                   1024 Services              21,344 K\n"
+            "explorer.exe                  1120 Console               35,120 K\n"
+            "cmd.exe                       1234 Console                4,096 K\n"
+            "chrome.exe                    1300 Console              150,000 K"
+        ),
+        "ping": (
+            "Pinging corp.intranet.local [10.0.0.5] with 32 bytes of data:\n"
+            "Reply from 10.0.0.5: bytes=32 time<1ms TTL=128\n"
+            "Reply from 10.0.0.5: bytes=32 time<1ms TTL=128\n"
+            "Reply from 10.0.0.5: bytes=32 time<1ms TTL=128"
+        ),
+        "help": (
+            "Supported commands:\n"
+            "  whoami      Show current user\n"
+            "  ipconfig    Display network configuration\n"
+            "  netstat     Show network connections\n"
+            "  dir         List directory contents\n"
+            "  tasklist    Show running tasks\n"
+            "  systeminfo  Display system info\n"
+            "  ping        Test network connection\n"
+            "  help        Show this list"
+        )
+    }
+
+    def insert_prompt():
+        text_widget.insert("end", prompt)
+        text_widget.see("end")
+
+    def on_enter(event):
+        input_text = text_widget.get("insert linestart", "insert").strip()
+        command = input_text.replace(prompt.strip(), "").strip().lower()
+
+        response = responses.get(command, f"'{command}' is not recognized as an internal or external command.")
+        text_widget.insert("end", f"\n{response}\n")
+        insert_prompt()
+        return "break"
+
+    text_widget.bind("<Return>", on_enter)
+    insert_prompt()
+    text_widget.focus_set()
+          
+def fake_chat_window():
+    chat_win = tk.Toplevel()
+    chat_win.title("Team Chat")
+    chat_win.geometry("400x300")
+    text = tk.Text(chat_win, state="disabled", bg="white")
+    text.pack(fill="both", expand=True)
+
+    messages = [
+        "John: Did you see the latest HR memo?",
+        "Alice: VPN is down again...",
+        "Bob: Lunch today?",
+        "Jane: What's the password for Johns account again?",
+        "IT-Bot: Your ticket #3421 is now closed."
+    ]
+
+    def update_chat():
+        for msg in messages:
+            text.config(state="normal")
+            text.insert("end", msg + "\n")
+            text.config(state="disabled")
+            time.sleep(2)
+
+    threading.Thread(target=update_chat, daemon=True).start()
+
+def internal_browser():
+    browser_win = tk.Toplevel()
+    browser_win.geometry("500x400")
+    browser_win.title("Internal Browser")
+
+    login_frame = tk.Frame(browser_win)
+    dashboard_frame = tk.Frame(browser_win)
+    hr_frame = tk.Frame(browser_win)
+
+    for frame in (login_frame, dashboard_frame, hr_frame):
+        frame.grid(row=0, column=0, sticky='nsew')
+
+    def raise_frame(frame):
+        frame.tkraise()
+
+    # Login Page
+    tk.Label(login_frame, text="ACME Login", font=("Segoe UI", 14)).pack(pady=10)
+    tk.Label(login_frame, text="Username").pack()
+    user_entry = tk.Entry(login_frame)
+    user_entry.pack()
+    tk.Label(login_frame, text="Password").pack()
+    pass_entry = tk.Entry(login_frame, show="*")
+    pass_entry.pack()
+
+    def check_login():
+        with open(CRED_FILE) as f:
+            creds = f.read().strip()
+        if f"{user_entry.get()}:{pass_entry.get()}" == creds:
+            raise_frame(dashboard_frame)
+            browser_win.after(5000, lambda: messagebox.showwarning("Alert", "You've been caught!"))
+        else:
+            messagebox.showerror("Login Failed", "Invalid credentials.")
+
+    tk.Button(login_frame, text="Login", command=check_login).pack(pady=10)
+
+    # Dashboard Page
+    tk.Label(dashboard_frame, text="Employee Dashboard", font=("Segoe UI", 14)).pack(pady=10)
+    tk.Button(dashboard_frame, text="Go to HR Portal", command=lambda: raise_frame(hr_frame)).pack()
+
+    # HR Portal
+    tk.Label(hr_frame, text="HR Directory", font=("Segoe UI", 14)).pack(pady=10)
+    text = tk.Text(hr_frame)
+    text.pack(expand=True, fill="both")
+    employees = [
+        "Name: Jane Doe\nAddress: 123 Main St\nPhone: 555-1234\nEmail: jane.doe@acme.com\n",
+        "Name: Tom Smith\nAddress: 456 Oak Rd\nPhone: 555-5678\nEmail: tom.smith@acme.com\n"
+    ]
+    for emp in employees:
+        text.insert("end", emp + "\n")
+
+    raise_frame(login_frame)
+
+# ----------------- Main Desktop -----------------
+
+def fake_desktop():
+    win = tk.Tk()
+    win.title("ACME Corp Desktop")
+    win.geometry("500x400")
+    tk.Label(win, text="Welcome to ACME Corp", font=("Segoe UI", 14)).pack(pady=10)
+
+    tk.Button(win, text="Open Internal Browser", command=internal_browser).pack(pady=5)
+    tk.Button(win, text="Terminal", command=fake_terminal).pack(pady=5)
+    tk.Button(win, text="Email Client", command=fake_email_client).pack(pady=5)
+    tk.Button(win, text="Team Chat Window", command=fake_chat_window).pack(pady=5)
+    tk.Button(win, text="Open File Browser", command=open_file_browser).pack(pady=5)
+
+    win.mainloop()
+
+# ----------------- Run -----------------
+
+if __name__ == "__main__":
+    setup_fake_environment()
+    fake_desktop()
