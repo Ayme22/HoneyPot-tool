@@ -4,16 +4,23 @@
 # - Fake email client
 # - Fake terminal with scripted responses
 # - Decoy chat window
-
+# This version does not require real admin privileges or access to real Windows event logs.
 from pathlib import Path 
+import matplotlib.pyplot as plt
+import matplotlib.animation as animation
+from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
+import psutil
 import os
 import shutil
 import threading
 import tkinter as tk
-from tkinter import messagebox, filedialog
+from tkinter import messagebox, filedialog, ttk
 import time
 import random
 import logging
+import numpy as np
+from tkhtmlview import HTMLLabel
+
 
 # ----------------- Configuration -----------------
 FAKE_STRUCTURE = {
@@ -54,8 +61,253 @@ def setup_fake_environment():
 # ----------------- Components -----------------
 
 def open_file_browser():
-    base_dir = os.path.expanduser("~/Documents/Fake_Corp")
-    filedialog.askopenfilename(initialdir=base_dir, title="Browse Files")
+    browser_win = tk.Toplevel()
+    browser_win.title("File Explorer")
+    browser_win.geometry("600x400")
+
+    tk.Label(browser_win, text="ACME Corp - File Explorer", font=("Segoe UI", 12, "bold")).pack(pady=5)
+
+    main_frame = tk.Frame(browser_win)
+    main_frame.pack(fill="both", expand=True, padx=10, pady=10)
+
+    # Left: Tree
+    tree = ttk.Treeview(main_frame)
+    tree.pack(side="left", fill="both", expand=True)
+
+    # Right: Preview pane
+    preview = tk.Text(main_frame, width=40, wrap="word")
+    preview.pack(side="right", fill="both", expand=True)
+    preview.insert("1.0", "Select or double-click a file to view its contents.")
+    preview.config(state="disabled")
+
+    # Simulated file structure
+    fake_fs = {
+    "HR": {
+        "employee_list.txt": "John Smith\nJane Doe\nAlice Johnson",
+        "reviews.docx": """Employee Reviews:
+
+        1. John Doe - Software Engineer
+        Review: John has consistently demonstrated excellent problem-solving skills. He works well under pressure and always meets deadlines. His communication with the team could improve.
+        Rating: 4.5/5
+
+        2. Jane Smith - Data Analyst
+        Review: Jane is a fantastic team player and always brings great insights to meetings. She is highly analytical and handles large datasets with ease. Needs to improve her speed in report generation.
+        Rating: 4/5
+
+        3. Michael Brown - System Administrator
+        Review: Michael is reliable and quick to resolve system issues. However, he needs to work on documentation and follow-up after implementing solutions.
+        Rating: 3.8/5
+
+        4. Emily White - Project Manager
+        Review: Emily manages projects effectively and keeps the team on track. However, she could improve her conflict resolution skills when dealing with team disagreements.
+        Rating: 4.2/5"""
+    },
+
+    "Finance": {
+        "budget.xlsx": """
+        Department  |   Q1     |   Q2     |   Q3     |   Q4
+         -------------------------------------------------------
+         R&D        | $120,000 | $135,000 | $140,000 | $130,000
+         Marketing  | $80,000  | $85,000  | $90,000  | $95,000
+         Sales      | $150,000 | $160,000 | $170,000 | $180,000
+         HR         | $60,000  | $62,000  | $63,000  | $65,000
+         IT         | $100,000 | $110,000 | $115,000 | $120,000""",
+
+        "salaries.txt": """Salaries - Confidential
+
+        1. John Doe - CEO
+        Base Salary: $250,000
+        Bonus: $50,000
+        Stock Options: $150,000
+        Deductions: $25,000
+        Net Salary: $425,000
+
+        2. Jane Smith - CTO
+        Base Salary: $200,000
+        Bonus: $40,000
+        Stock Options: $100,000
+        Deductions: $20,000
+        Net Salary: $320,000
+
+        3. Alice Johnson - Senior Developer
+        Base Salary: $120,000
+        Bonus: $10,000
+        Stock Options: $30,000
+        Deductions: $15,000
+        Net Salary: $145,000
+
+        4. Michael Brown - HR Manager
+        Base Salary: $95,000
+        Bonus: $8,000
+        Stock Options: $5,000
+        Deductions: $10,000
+        Net Salary: $98,000
+
+        5. Emily White - Project Manager
+        Base Salary: $110,000
+        Bonus: $12,000
+        Stock Options: $20,000
+        Deductions: $18,000
+        Net Salary: $124,000"""
+    },
+
+    "Projects": {
+        "Project_X": {
+            "readme.txt": """=======================
+            PROJECT_X - README
+            =======================
+
+            Project Overview:
+            ========================
+            Project_X is a highly classified initiative aimed at developing cutting-edge technology for next-generation security systems. This project involves multiple teams working across various disciplines, including cybersecurity, cryptography, and artificial intelligence.
+
+            Project Status:
+            ========================
+            Current Status: In Development
+            Project Phase: Alpha Testing
+            Deadline for Phase 1: December 2025
+
+            Key Objectives:
+            ========================
+            1. Design and implement an advanced encryption algorithm for secure communications.
+            2. Develop machine learning models for threat detection and prevention.
+            3. Integrate biometric authentication methods into a new security suite.
+            4. Conduct live penetration testing in controlled environments.
+            5. Ensure full compliance with global data protection regulations (GDPR, HIPAA).
+
+            Confidentiality Notice:
+            ========================
+            This document and all associated files and data related to Project_X are classified and must not be disclosed to unauthorized individuals under any circumstances. Any breach of confidentiality will result in severe legal consequences, including criminal prosecution.
+
+            Project Team Members:
+            ========================
+            - Alice Johnson (Lead Researcher)
+            - John Doe (AI Specialist)
+            - Michael Brown (Cybersecurity Expert)
+            - Emily White (Project Manager)
+
+            Top Secret:
+            ========================
+            The details contained within this project are classified as "Top Secret." Unauthorized access to or dissemination of project details is prohibited. The project is protected by multiple layers of security protocols, including encrypted communications, secure storage, and restricted access to sensitive data.
+
+            Security Measures:
+            ========================
+            1. All project communications are encrypted using AES-256 encryption.
+            2. Data access is limited to authorized personnel only.
+            3. Physical security measures include 24/7 surveillance and biometric access controls.
+            4. All project-related hardware and software are protected by multi-factor authentication.
+
+            Contact Information:
+            ========================
+            For any inquiries regarding Project_X, please contact the following personnel:
+
+            - Alice Johnson (Lead Researcher): alice.johnson@topsecret.com
+            - John Doe (AI Specialist): john.doe@topsecret.com
+
+            Warning: All project documents, including this one, are subject to review by the project security team. Any unauthorized copying, sharing, or printing of these documents is a breach of confidentiality.
+
+            END OF DOCUMENT""",
+
+                        "exploit_plan.pdf": """============================
+            Project_X Exploit Plan
+            ============================
+
+            Confidential: Top Secret
+
+            Prepared by: The Exploit and Security Penetration Team
+            Last Updated: May 2025
+
+            Overview:
+            ============================
+            This document outlines a comprehensive plan for testing the vulnerabilities of Project_Xs infrastructure, focusing on potential exploits in the AI-driven threat detection system, encryption protocols, and hardware interfaces. This is a controlled testing plan designed for ethical hacking and internal security assessment only.
+
+            Objectives:
+            ============================
+            1. Test AI Model Security:
+               - Exploit: Craft adversarial inputs to confuse the model.
+               - Target: DL-TDM
+
+            2. Encryption Protocols:
+               - Exploit: Brute force / side-channel attack.
+               - Target: AES-256 Algorithm
+
+            3. Biometric Bypass:
+               - Exploit: Spoof facial/fingerprint recognition.
+               - Target: Biometric Access System
+
+            4. Buffer Overflow:
+               - Exploit: Overflow secure storage systems.
+               - Target: SSS Memory Regions
+
+            5. Physical Security:
+               - Exploit: Social engineering, tailgating, lock bypass.
+               - Target: Facility Security
+
+            Methodology:
+            ============================
+            1. Recon & Footprinting
+            2. Vulnerability Scanning
+            3. Exploitation & Escalation
+            4. Post-Exploitation Actions
+            5. Reporting & Patch Plans
+
+            Security & Ethics:
+            ============================
+            - Testing is internal and non-destructive.
+            - Unauthorized attempts are criminal offenses.
+
+            End of Document.""",
+
+            "credentials.txt": """admin:password123!
+             user:ugly465
+             alice:lmnop907
+             bob:hunterxhunter
+             charlie:lemosnberries76"""
+        }
+    }
+}
+
+    # Track file contents with full paths
+    file_content_map = {}
+
+    def build_tree(parent, structure, path=""):
+        for key, value in structure.items():
+            full_path = f"{path}/{key}" if path else key
+            if isinstance(value, dict):
+                node = tree.insert(parent, "end", text=key, open=False)
+                build_tree(node, value, full_path)
+            else:
+                node = tree.insert(parent, "end", text=key, open=False)
+                file_content_map[full_path] = value
+
+    build_tree("", fake_fs)
+
+    def preview_file_by_path(path):
+        content = file_content_map.get(path)
+        preview.config(state="normal")
+        preview.delete("1.0", "end")
+        if content:
+            preview.insert("1.0", content)
+        else:
+            preview.insert("1.0", f"[Folder: {path}]")
+        preview.config(state="disabled")
+
+    def get_item_path(item):
+        parts = []
+        while item:
+            parts.insert(0, tree.item(item)["text"])
+            item = tree.parent(item)
+        return "/".join(parts)
+
+    def on_double_click(event):
+        item = tree.focus()
+        full_path = get_item_path(item)
+        if full_path in file_content_map:
+            preview_file_by_path(full_path)
+
+    tree.bind("<Double-1>", on_double_click)
+    tree.bind("<<TreeviewSelect>>", lambda e: preview_file_by_path(get_item_path(tree.focus())))
+
 
 def fake_email_client():
     emails = [
@@ -175,7 +427,8 @@ def fake_chat_window():
         "John: Did you see the latest HR memo?",
         "Alice: VPN is down again...",
         "Bob: Lunch today?",
-        "Jane: What's the password for Johns account again?",
+        "Jane: What's the password for HR?",
+        "Alice: The password is ******",
         "IT-Bot: Your ticket #3421 is now closed."
     ]
 
@@ -188,20 +441,131 @@ def fake_chat_window():
 
     threading.Thread(target=update_chat, daemon=True).start()
 
+def fake_task_manager():
+    tm_win = tk.Toplevel()
+    tm_win.title("Task Manager")
+    tm_win.geometry("800x600")
+
+    # Header
+    header = tk.Label(tm_win, text="ACME Corp Task Manager", font=("Segoe UI", 14))
+    header.pack(pady=5)
+
+    # Frame for CPU usage graph
+    graph_frame = tk.Frame(tm_win)
+    graph_frame.pack(pady=10)
+
+    # Matplotlib figure and axis for CPU usage chart
+    fig, ax = plt.subplots(figsize=(6, 3))
+    x_data = []
+    y_data = []
+
+    # Embed matplotlib canvas in Tkinter
+    canvas = FigureCanvasTkAgg(fig, master=graph_frame)
+    canvas.get_tk_widget().pack(fill="both", expand=True)
+
+    # CPU/Memory stats
+    stats_frame = tk.Frame(tm_win)
+    stats_frame.pack(pady=5)
+
+    cpu_label = tk.Label(stats_frame, text="CPU Usage: 0%")
+    cpu_label.grid(row=0, column=0, padx=10)
+    mem_label = tk.Label(stats_frame, text="Memory Usage: 0.0 GB / 8 GB")
+    mem_label.grid(row=0, column=1, padx=10)
+
+    def update_graph(frame):
+        cpu_usage = random.randint(5, 95)
+        mem_used = round(random.uniform(2.5, 7.5), 1)
+
+        x_data.append(frame)
+        y_data.append(cpu_usage)
+
+        if len(x_data) > 30:
+            x_data.pop(0)
+            y_data.pop(0)
+
+        ax.clear()
+        ax.set_title("Live CPU Usage")
+        ax.set_xlabel("Time (s)")
+        ax.set_ylabel("CPU Usage (%)")
+        ax.set_ylim(0, 100)
+        ax.plot(x_data, y_data, color="blue", label="CPU Usage")
+        ax.legend()
+
+        canvas.draw()
+
+        cpu_label.config(text=f"CPU Usage: {cpu_usage}%")
+        mem_label.config(text=f"Memory Usage: {mem_used} GB / 8 GB")
+
+    # Animate the graph
+    tm_win.ani = animation.FuncAnimation(fig, update_graph, interval=1000)
+
+    # Frame for process table
+    process_frame = tk.Frame(tm_win)
+    process_frame.pack(fill="both", expand=True, padx=10, pady=5)
+
+    # Treeview for fake processes
+    tree = ttk.Treeview(process_frame, columns=("name", "pid", "status", "mem"), show="headings")
+    tree.heading("name", text="Process Name")
+    tree.heading("pid", text="PID")
+    tree.heading("status", text="Status")
+    tree.heading("mem", text="Memory")
+
+    tree.column("name", width=200)
+    tree.column("pid", width=80)
+    tree.column("status", width=100)
+    tree.column("mem", width=120)
+    tree.pack(fill="both", expand=True)
+
+    fake_processes = [
+        ("explorer.exe", 1120, "Running", "35 MB"),
+        ("chrome.exe", 1300, "Running", "150 MB"),
+        ("cmd.exe", 1234, "Running", "4 MB"),
+        ("svchost.exe", 1024, "Running", "21 MB"),
+        ("securityscan.exe", 1400, "Suspended", "6 MB"),
+        ("updateagent.exe", 1501, "Running", "12 MB"),
+    ]
+
+    for name, pid, status, mem in fake_processes:
+        tree.insert("", "end", values=(name, pid, status, mem))
+
+    def end_task():
+        selection = tree.selection()
+        if selection:
+            tree.delete(selection[0])
+            messagebox.showinfo("Task Manager", "Process terminated successfully.")
+            
+    def start_task():
+        # Simulate starting a new process (you can customize the name, pid, etc.)
+        new_pid = random.randint(1000, 2000)
+        new_status = "Running"
+        new_mem = f"{random.randint(10, 200)} MB"
+        new_process_name = "newprocess.exe"
+        
+        tree.insert("", "end", values=(new_process_name, new_pid, new_status, new_mem))
+        messagebox.showinfo("Task Manager", f"Process {new_process_name} started successfully.")
+        
+
+    end_btn = tk.Button(tm_win, text="End Task", command=end_task)
+    end_btn.pack(pady=5)
+
+    start_btn = tk.Button(tm_win, text="Start Task", command=start_task)
+    start_btn.pack(pady=5)
+
 def internal_browser():
-    browser_win = tk.Toplevel()
-    browser_win.geometry("500x400")
+    def raise_frame(frame):
+        frame.tkraise()
+
+    browser_win = tk.Tk()
+    browser_win.geometry("800x600")
     browser_win.title("Internal Browser")
 
     login_frame = tk.Frame(browser_win)
     dashboard_frame = tk.Frame(browser_win)
     hr_frame = tk.Frame(browser_win)
 
-    for frame in (login_frame, dashboard_frame, hr_frame):
-        frame.grid(row=0, column=0, sticky='nsew')
 
-    def raise_frame(frame):
-        frame.tkraise()
+    for frame in (login_frame, dashboard_frame, hr_frame):
+        frame.place(relwidth=1, relheight=1)
 
     # Login Page
     tk.Label(login_frame, text="ACME Login", font=("Segoe UI", 14)).pack(pady=10)
@@ -213,32 +577,56 @@ def internal_browser():
     pass_entry.pack()
 
     def check_login():
-        with open(CRED_FILE) as f:
-            creds = f.read().strip()
-        if f"{user_entry.get()}:{pass_entry.get()}" == creds:
-            raise_frame(dashboard_frame)
-            browser_win.after(5000, lambda: messagebox.showwarning("Alert", "You've been caught!"))
+        fake_credentials = {"admin": "password123!"}
+        username = user_entry.get()
+        password = pass_entry.get()
+        if fake_credentials.get(username) == password:
+            raise_frame(dashboard_frame) 
         else:
             messagebox.showerror("Login Failed", "Invalid credentials.")
 
-    tk.Button(login_frame, text="Login", command=check_login).pack(pady=10)
-
+    login_button = tk.Button(login_frame, text="Login", command=check_login)
+    login_button.pack(pady=10)
+    
     # Dashboard Page
     tk.Label(dashboard_frame, text="Employee Dashboard", font=("Segoe UI", 14)).pack(pady=10)
-    tk.Button(dashboard_frame, text="Go to HR Portal", command=lambda: raise_frame(hr_frame)).pack()
+    tk.Button(dashboard_frame, text="Go to HR Portal", command=lambda: raise_frame(hr_frame)).pack(pady=10)
 
     # HR Portal
-    tk.Label(hr_frame, text="HR Directory", font=("Segoe UI", 14)).pack(pady=10)
-    text = tk.Text(hr_frame)
-    text.pack(expand=True, fill="both")
-    employees = [
-        "Name: Jane Doe\nAddress: 123 Main St\nPhone: 555-1234\nEmail: jane.doe@acme.com\n",
-        "Name: Tom Smith\nAddress: 456 Oak Rd\nPhone: 555-5678\nEmail: tom.smith@acme.com\n"
-    ]
-    for emp in employees:
-        text.insert("end", emp + "\n")
+    def generate_hr_dashboard():
+        for widget in hr_frame.winfo_children():
+            widget.destroy()
+
+        tk.Label(hr_frame, text="HR Dashboard", font=("Segoe UI", 14)).pack(pady=10) 
+
+        employee_names = ["John Smith", "Jane Doe", "Alice Johnson"]
+        salaries = [120000, 95000, 85000]
+        ratings = [4.5, 3.8, 4.0]
+
+        # Create a figure with subplots
+        fig, axs = plt.subplots(1, 2, figsize=(12, 6))
+        axs[0].bar(employee_names, salaries, color='skyblue')
+        axs[0].set_title('Employee Salaries')
+        axs[0].set_xlabel('Employees')
+        axs[0].set_ylabel('Salary ($)')
+
+    
+        # Plot Rating Data on the second subplot
+        axs[1].pie(ratings, labels=employee_names, autopct='%1.1f%%', startangle=90, colors=['#ff9999','#66b3ff','#99ff99'])
+        axs[1].set_title('Employee Ratings')
+    
+        # Adjust layout to avoid overlap
+        plt.tight_layout()
+    
+        canvas = FigureCanvasTkAgg(fig, master=hr_frame)
+        canvas.get_tk_widget().pack(fill="both", expand=True)
+        canvas.draw()
+        tk.Button(hr_frame, text="Back to Dashboard", command=lambda: raise_frame(dashboard_frame)).pack()
+
+    tk.Button(hr_frame, text="Generate HR Dashboard", command=generate_hr_dashboard).pack()
 
     raise_frame(login_frame)
+    browser_win.mainloop()
 
 # ----------------- Main Desktop -----------------
 
@@ -253,6 +641,8 @@ def fake_desktop():
     tk.Button(win, text="Email Client", command=fake_email_client).pack(pady=5)
     tk.Button(win, text="Team Chat Window", command=fake_chat_window).pack(pady=5)
     tk.Button(win, text="Open File Browser", command=open_file_browser).pack(pady=5)
+    tk.Button(win, text="Task Manager", command=fake_task_manager).pack(pady=5)
+
 
     win.mainloop()
 
@@ -261,3 +651,6 @@ def fake_desktop():
 if __name__ == "__main__":
     setup_fake_environment()
     fake_desktop()
+   
+
+
