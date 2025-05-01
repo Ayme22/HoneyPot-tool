@@ -2,7 +2,7 @@
 # Deceptive RDP Honeypot
 This project simulates a realistic Windows Remote Desktop (RDP) environment to lure and monitor unauthorized access. It features a fake corporate desktop environment with interactive components designed to deceive and gather intelligence on intruders.
 
-## ***📦 Features**
+## **📦 Features**
 - Fake Desktop GUI: Simulated Windows-like interface with folder structure and clickable fake files.
 
 - Login Page: Internal browser simulates a login screen using credentials from admin_creds.txt.
@@ -24,7 +24,7 @@ This project simulates a realistic Windows Remote Desktop (RDP) environment to l
 - Thread-Safe Logging: All activities are logged safely to avoid conflicts.
 Log Location: All logs are stored in ~/Documents/Fake_Corp/.
 
-## ***📂 Directory Structure**
+## **📂 Directory Structure**
 bash
 Copy
 Edit
@@ -36,12 +36,12 @@ project/
 └── Documents/
     └── Fake_Corp/             # All log files and screenshots go here
     
-## ***🛠️ Requirements **
+## **🛠️ Requirements **
 Python 3.7+
 Tkinter (comes with standard Python on most systems)
 Pillow (pip install pillow)
 
-▶️ ## ***Running the Honeypot**
+▶️ ## **Running the Honeypot**
 Run Manually
 bash
 Copy
@@ -78,8 +78,9 @@ Startup directory: Project folder
 Click Install service, then start it via:
 cmd
 nssm start RDPHoneypot
-🧠 ## ***Purpose**
+
+🧠 ## **Purpose**
 This tool is designed for cybersecurity research, deception-based defense, and controlled environment testing. It must not be used in production networks or against real users.
 
-⚠️ ## ***Disclaimer**
+⚠️ ## **Disclaimer**
 This software is provided for educational and ethical security research purposes only. Misuse of this tool may violate laws or terms of service. The author is not responsible for any consequences arising from unauthorized or unethical use.
