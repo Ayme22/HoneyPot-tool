@@ -73,8 +73,8 @@ Click Install service, then start it via:
 cmd
 nssm start RDPHoneypot
 
-###**🧠Purpose**
+## **🧠Purpose**
 This tool is designed for cybersecurity research, deception-based defense, and controlled environment testing. It must not be used in production networks or against real users.
 
-###**⚠️Disclaimer**
+## **⚠️Disclaimer**
 This software is provided for educational and ethical security research purposes only. Misuse of this tool may violate laws or terms of service. The author is not responsible for any consequences arising from unauthorized or unethical use.
