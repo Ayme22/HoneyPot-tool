@@ -33,16 +33,13 @@ project/
 └── Documents/
     └── Fake_Corp/             # All log files and screenshots go here
     
-## **🛠️ Requirements **
+## **🛠️ Requirements**
 Python 3.7+
 Tkinter (comes with standard Python on most systems)
 Pillow (pip install pillow)
 
-##**▶️Running the Honeypot**
+## **▶️Running the Honeypot**
 Run Manually
-bash
-Copy
-Edit
 python honeypot.py
 Run on Startup (Windows)
 ### To deploy as a persistent service that runs at login:
@@ -76,8 +73,8 @@ Click Install service, then start it via:
 cmd
 nssm start RDPHoneypot
 
-##**🧠Purpose**
+###**🧠Purpose**
 This tool is designed for cybersecurity research, deception-based defense, and controlled environment testing. It must not be used in production networks or against real users.
 
-##**⚠️Disclaimer**
+###**⚠️Disclaimer**
 This software is provided for educational and ethical security research purposes only. Misuse of this tool may violate laws or terms of service. The author is not responsible for any consequences arising from unauthorized or unethical use.
